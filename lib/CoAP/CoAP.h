@@ -1,5 +1,5 @@
-#ifndef MINI_COAP_H
-#define MINI_COAP_H
+#ifndef MINICOAP_H
+#define MINICOAP_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -40,25 +40,40 @@ typedef struct {
     size_t payload_len;
 } coap_packet_t;
 
-// --- DEFINICJA HANDLERA (Funkcji obsługującej dany URL) ---
-// Taki handler zostanie wywołany, gdy ktoś zapyta o konkretny zasób
+// Deklaracja typu handlera. 
+// UWAGA: W C++ można by tu użyć std::function, ale na razie trzymajmy się prostoty
 typedef void (*coap_resource_handler_t)(struct sockaddr_in *client_addr, coap_packet_t *request);
 
-// --- FUNKCJE API (MVP) ---
+// ==========================================
+// KLASA MiniCoAP
+// ==========================================
+class MiniCoAP {
+private:
+    int server_socket;
+    uint16_t port;
+    const char* TAG = "MINI_COAP";
 
-// 1. Uruchamia serwer w osobnym zadaniu FreeRTOS
-void mini_coap_server_start(void);
+    // Pętla główna serwera (metoda obiektu)
+    void server_task();
 
-// 2. Rejestruje ścieżkę (np. "led") i podpina pod nią funkcję
-void mini_coap_register_resource(const char *uri_path, coap_method_t method, coap_resource_handler_t handler);
+    // Statyczna funkcja-trampolina dla FreeRTOS
+    static void task_trampoline(void* _this);
 
-// 3. Parsowanie i Serializacja
-int mini_coap_parse_pdu(const uint8_t *buffer, size_t buffer_len, coap_packet_t *packet);
-int mini_coap_serialize_pdu(const coap_packet_t *packet, uint8_t *buffer, size_t *buffer_len);
+public:
+    // Konstruktor
+    MiniCoAP(uint16_t listen_port = 5683);
+    // Destruktor
+    ~MiniCoAP();
 
-// 4. Wysyłanie odpowiedzi do klienta (z wnętrza handlera)
-void mini_coap_send_response(struct sockaddr_in *client_addr, coap_packet_t *request, uint8_t response_code, const uint8_t *payload, size_t payload_len);
+    // Metody API
+    void start();
+    
+    int parse_pdu(const uint8_t *buffer, size_t buffer_len, coap_packet_t *packet);
+    int serialize_pdu(const coap_packet_t *packet, uint8_t *buffer, size_t *buffer_len);
+    
+    void register_resource(const char *uri_path, coap_method_t method, coap_resource_handler_t handler);
+    void route_request(coap_packet_t *request, struct sockaddr_in *client_addr);
+    void send_response(struct sockaddr_in *client_addr, coap_packet_t *request, uint8_t response_code, const uint8_t *payload, size_t payload_len);
+};
 
-void mini_coap_route_request(coap_packet_t *request, struct sockaddr_in *client_addr);
-
-#endif // MINI_COAP_H
+#endif // MINICOAP_H

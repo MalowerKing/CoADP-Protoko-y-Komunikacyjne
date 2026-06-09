@@ -1,10 +1,13 @@
 #include "esp_wifi.h"
-#include "mini_coap.h" // Twój moduł z folderu lib!
+#include "MiniCoAP.h"// Twój moduł z folderu lib!
+
+MiniCoAP coapServer;
 
 // Funkcja wywoływana, gdy ktoś zrobi zapytanie do /status
 void handle_status_get(struct sockaddr_in *client_addr, coap_packet_t *request) {
     const char *reply = "Wszystko dziala!";
-    mini_coap_send_response(client_addr, request, 69 /* 2.05 Content */, (const uint8_t*)reply, strlen(reply));
+   coapServer.register_resource("sensor", COAP_METHOD_GET, moj_handler);
+    coapServer.start();
 }
 
 // W kodzie inicjującym Wi-Fi:
