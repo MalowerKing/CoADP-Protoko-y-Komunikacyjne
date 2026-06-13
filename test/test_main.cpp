@@ -216,12 +216,11 @@ void test_coap_serialize_with_payload(void) {
     TEST_ASSERT_EQUAL_HEX8('K', buffer[8]);
 }
 
-// --- TEST 14: Bufor wyjściowy za mały na dane ---
 void test_coap_serialize_buffer_too_small(void) {
     coap_packet_t packet;
     memset(&packet, 0, sizeof(packet));
     MiniCoAP coap;
- 
+
     packet.version    = 1;
     packet.type       = COAP_TYPE_CON;
     packet.code       = COAP_METHOD_POST;
@@ -229,17 +228,17 @@ void test_coap_serialize_buffer_too_small(void) {
     packet.token_len  = 2;
     packet.token[0]   = 0x11;
     packet.token[1]   = 0x22;
- 
+
     const char *data  = "OK";
     packet.payload     = (const uint8_t *)data;
     packet.payload_len = 2;
- 
-    uint8_t small_buffer[5]; 
-    size_t len = 0;
- 
+
+    uint8_t small_buffer[5];
+    size_t len = sizeof(small_buffer);  // ← FIX: was 0, must be 5
+
     int result = coap.serialize_pdu(&packet, small_buffer, &len);
- 
-    TEST_ASSERT_EQUAL_INT(-1, result);
+
+    TEST_ASSERT_EQUAL_INT(-1, result);  // required=9 > capacity=5 → -1 ✓
 }
  
 // --- TEST 15: NULL-owe argumenty serializacji ---

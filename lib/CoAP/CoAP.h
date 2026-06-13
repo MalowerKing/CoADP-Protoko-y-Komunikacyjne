@@ -3,7 +3,15 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <string.h>
 #include <lwip/sockets.h>
+#include <esp_log.h> // Przydaje się do ESP_LOGE / ESP_LOGI w pliku .cpp
+
+#define COAP_RESPONSE_205  0x45
+#define COAP_RESPONSE_404  0x84
+#define COAP_RESPONSE_400  0x80
+
+#define MAX_RESOURCES 10 // Limit zarejestrowanych ścieżek
 
 // --- KODY ZAPYTAŃ I ODPOWIEDZI ---
 typedef enum {
@@ -40,11 +48,16 @@ typedef struct {
     size_t payload_len;
 } coap_packet_t;
 
-// Deklaracja typu handlera. 
-// UWAGA: W C++ można by tu użyć std::function, ale na razie trzymajmy się prostoty
+
+// --- 1. NAJPIERW: Deklaracja typu handlera ---
 typedef void (*coap_resource_handler_t)(struct sockaddr_in *client_addr, coap_packet_t *request);
 
-// ==========================================
+// --- 2. POTEM: Struktura zasobu (korzysta z handlera) ---
+typedef struct {
+    const char *uri_path;
+    coap_method_t method;
+    coap_resource_handler_t handler;
+} coap_resource_t;// ==========================================
 // KLASA MiniCoAP
 // ==========================================
 class MiniCoAP {
@@ -58,6 +71,9 @@ private:
 
     // Statyczna funkcja-trampolina dla FreeRTOS
     static void task_trampoline(void* _this);
+coap_resource_t resources[MAX_RESOURCES];
+    uint8_t resource_count = 0;
+        
 
 public:
     // Konstruktor
@@ -71,8 +87,8 @@ public:
     int parse_pdu(const uint8_t *buffer, size_t buffer_len, coap_packet_t *packet);
     int serialize_pdu(const coap_packet_t *packet, uint8_t *buffer, size_t *buffer_len);
     
-    void register_resource(const char *uri_path, coap_method_t method, coap_resource_handler_t handler);
-    void route_request(coap_packet_t *request, struct sockaddr_in *client_addr);
+void register_resource(const char *uri_path, coap_method_t method, coap_resource_handler_t handler);
+void route_request(coap_packet_t *request, struct sockaddr_in *client_addr);
     void send_response(struct sockaddr_in *client_addr, coap_packet_t *request, uint8_t response_code, const uint8_t *payload, size_t payload_len);
 };
 
